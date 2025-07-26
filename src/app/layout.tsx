@@ -6,6 +6,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import BottomTabs from '@/components/nav/BottomTabs';
 import TopNav from '@/components/nav/TopNav';
 import ServiceWorker from '@/components/ServiceWorker';
+import { AuthProvider } from '@/components/auth';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({
@@ -31,13 +32,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TopNav />
-        <main className="min-h-screen pb-14">{children}</main>
-        <footer className="border-t py-4 text-center">
-          © Rodeo Companion
-        </footer>
-        <BottomTabs />
-        <ServiceWorker />
+        <AuthProvider>
+          <TopNav />
+          <main className="min-h-screen pb-14">{children}</main>
+          <footer className="border-t py-4 text-center">
+            © Rodeo Companion
+          </footer>
+          <BottomTabs />
+          <ServiceWorker />
+        </AuthProvider>
       </body>
     </html>
   );
