@@ -20,6 +20,16 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Local Environment
+
+For development the application expects a `.env.local` file in the project root containing your MongoDB connection string. A sample connection string is shown below and matches the one used by the demo site:
+
+```ini
+MONGODB_URI=mongodb+srv://kmv9063:Ma1ya%40nk3@cluster0.b4vji2s.mongodb.net/sample_mflix?retryWrites=true&w=majority
+```
+
+Copy this into `.env.local` before running the dev server.
+
 ## Database Configuration
 
 The project uses [Prisma](https://www.prisma.io/) with PostgreSQL. In production
