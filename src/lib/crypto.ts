@@ -1,5 +1,26 @@
 // Utilities compatible with both Node.js and Edge runtimes
-// Node.js provides the Web Crypto API at globalThis.crypto
+// Provide helpers that rely solely on the Web Crypto API so they work
+// when the file is executed in the Edge Runtime.
+
+/**
+ * Generate cryptographically secure random bytes.
+ */
+export function randomBytes(length: number): Uint8Array {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+/**
+ * Create a SHA-256 hash of the input string and return it as a hex string.
+ */
+export async function createHash(data: string): Promise<string> {
+  const encoded = new TextEncoder().encode(data);
+  const digest = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 function bufferToBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { verifySessionCookie } from '@/lib/crypto';
+// Import crypto helpers that work in the Edge runtime
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { createHash, randomBytes, verifySessionCookie } from '@/lib/crypto';
 
 // Define protected routes that require authentication
 const protectedPaths = [
