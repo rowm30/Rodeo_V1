@@ -20,6 +20,32 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Database Configuration
+
+The project uses [Prisma](https://www.prisma.io/) with PostgreSQL. In production
+it expects a connection to an **Azure PostgreSQL Flexible Server**. The database
+connection string is read from the `DATABASE_URL` environment variable.
+
+Create a `.env.production` file based on the provided template and set the
+credentials for your server:
+
+```bash
+cp .env.production.example .env.production
+# then edit .env.production with your production database credentials
+```
+
+Run migrations in production with:
+
+```bash
+npm run migrate
+```
+
+To create a new migration during development run:
+
+```bash
+npx prisma migrate dev --name <migration-name>
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
