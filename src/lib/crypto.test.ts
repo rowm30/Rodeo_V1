@@ -2,27 +2,13 @@ import {
   generateJWKThumbprint,
   generateNonce,
   signSessionCookie,
-  verifySessionCookie,
   validateECDSAP256JWK,
+  verifySessionCookie,
 } from './crypto';
-
-// Mock crypto module
-jest.mock('crypto', () => ({
-  createHash: jest.fn(() => ({
-    update: jest.fn().mockReturnThis(),
-    digest: jest.fn((encoding) => {
-      if (encoding === 'base64url') {
-        return 'mocked-thumbprint';
-      }
-      return 'mocked-hash';
-    }),
-  })),
-  randomBytes: jest.fn(() => Buffer.from('mocked-random-bytes')),
-}));
 
 describe('Crypto utilities', () => {
   describe('generateJWKThumbprint', () => {
-    it('should generate a thumbprint for ECDSA P-256 key', () => {
+    it('should generate a thumbprint for ECDSA P-256 key', async () => {
       const jwk = {
         kty: 'EC',
         crv: 'P-256',
@@ -30,8 +16,9 @@ describe('Crypto utilities', () => {
         y: 'test-y',
       };
 
-      const thumbprint = generateJWKThumbprint(jwk);
-      expect(thumbprint).toBe('mocked-thumbprint');
+      const thumbprint = await generateJWKThumbprint(jwk);
+      expect(typeof thumbprint).toBe('string');
+      expect(thumbprint.length).toBeGreaterThan(0);
     });
   });
 
@@ -47,24 +34,24 @@ describe('Crypto utilities', () => {
     const sessionId = 'test-session-id';
     const secret = 'test-secret';
 
-    it('should sign and verify a session cookie', () => {
-      const signedCookie = signSessionCookie(sessionId, secret);
+    it('should sign and verify a session cookie', async () => {
+      const signedCookie = await signSessionCookie(sessionId, secret);
       expect(signedCookie).toContain(sessionId);
       expect(signedCookie).toContain('.');
 
-      const verifiedSessionId = verifySessionCookie(signedCookie, secret);
+      const verifiedSessionId = await verifySessionCookie(signedCookie, secret);
       expect(verifiedSessionId).toBe(sessionId);
     });
 
-    it('should return null for invalid signature', () => {
+    it('should return null for invalid signature', async () => {
       const signedCookie = `${sessionId}.invalid-signature`;
-      const result = verifySessionCookie(signedCookie, secret);
+      const result = await verifySessionCookie(signedCookie, secret);
       expect(result).toBeNull();
     });
 
-    it('should return null for malformed cookie', () => {
+    it('should return null for malformed cookie', async () => {
       const malformedCookie = 'invalid-cookie-format';
-      const result = verifySessionCookie(malformedCookie, secret);
+      const result = await verifySessionCookie(malformedCookie, secret);
       expect(result).toBeNull();
     });
   });

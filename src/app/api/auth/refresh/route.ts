@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
+
+import { signSessionCookie, verifySessionCookie } from '@/lib/crypto';
 import { Session } from '@/lib/models';
-import { verifySessionCookie, signSessionCookie } from '@/lib/crypto';
+import { connectToDatabase } from '@/lib/mongodb';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,40 +18,31 @@ export async function POST(request: NextRequest) {
     if (!signedCookie) {
       return NextResponse.json(
         { error: 'No session cookie found' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Verify and extract session ID
-    const sessionId = verifySessionCookie(signedCookie, sessionSecret);
+    const sessionId = await verifySessionCookie(signedCookie, sessionSecret);
     if (!sessionId) {
       return NextResponse.json(
         { error: 'Invalid session cookie' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Find and validate session
     const session = await Session.findById(sessionId);
     if (!session) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Session not found' }, { status: 401 });
     }
 
     if (session.revokedAt) {
-      return NextResponse.json(
-        { error: 'Session revoked' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Session revoked' }, { status: 401 });
     }
 
     if (new Date() > session.expiresAt) {
-      return NextResponse.json(
-        { error: 'Session expired' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Session expired' }, { status: 401 });
     }
 
     // Extend session
@@ -59,9 +51,12 @@ export async function POST(request: NextRequest) {
     await session.save();
 
     // Create new signed cookie
-    const newSignedCookie = signSessionCookie(session._id.toString(), sessionSecret);
+    const newSignedCookie = await signSessionCookie(
+      session._id.toString(),
+      sessionSecret,
+    );
 
-    const response = NextResponse.json({ 
+    const response = NextResponse.json({
       ok: true,
       expiresAt: newExpiresAt.toISOString(),
     });
@@ -77,10 +72,10 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Session refresh error:', error);
-    
+
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

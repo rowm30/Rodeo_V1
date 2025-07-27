@@ -1,9 +1,10 @@
+import mongoose from 'mongoose';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import mongoose from 'mongoose';
+
+import { signSessionCookie, verifySignature } from '@/lib/crypto';
+import { Challenge, Device, Session } from '@/lib/models';
 import { connectToDatabase } from '@/lib/mongodb';
-import { Device, Challenge, Session } from '@/lib/models';
-import { verifySignature, signSessionCookie } from '@/lib/crypto';
 
 const verifySchema = z.object({
   deviceId: z.string().refine((id) => mongoose.Types.ObjectId.isValid(id), {
@@ -31,16 +32,13 @@ export async function POST(request: NextRequest) {
     ]);
 
     if (!device) {
-      return NextResponse.json(
-        { error: 'Device not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
 
     if (!challenge) {
       return NextResponse.json(
         { error: 'Challenge not found' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -49,7 +47,7 @@ export async function POST(request: NextRequest) {
       const statusCode = device.status === 'locked' ? 423 : 403;
       return NextResponse.json(
         { error: `Device is ${device.status}` },
-        { status: statusCode }
+        { status: statusCode },
       );
     }
 
@@ -58,23 +56,20 @@ export async function POST(request: NextRequest) {
       await incrementFailedAttempts(device);
       return NextResponse.json(
         { error: 'Challenge already consumed' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (new Date() > challenge.expiresAt) {
       await incrementFailedAttempts(device);
-      return NextResponse.json(
-        { error: 'Challenge expired' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Challenge expired' }, { status: 400 });
     }
 
     if (!challenge.deviceId.equals(device._id)) {
       await incrementFailedAttempts(device);
       return NextResponse.json(
         { error: 'Challenge does not belong to device' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -82,21 +77,19 @@ export async function POST(request: NextRequest) {
     const isValidSignature = await verifySignature(
       device.publicKeyJwk,
       challenge.nonce,
-      signature
+      signature,
     );
 
     if (!isValidSignature) {
       await incrementFailedAttempts(device);
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     // Success! Reset failed attempts and create session
     device.failedAttempts = 0;
     device.lastSeenAt = new Date();
-    device.lastIp = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+    device.lastIp =
+      request.ip || request.headers.get('x-forwarded-for') || 'unknown';
     device.userAgent = request.headers.get('user-agent') || 'unknown';
     await device.save();
 
@@ -121,11 +114,14 @@ export async function POST(request: NextRequest) {
       throw new Error('SESSION_SECRET environment variable is not set');
     }
 
-    const signedCookie = signSessionCookie(session._id.toString(), sessionSecret);
+    const signedCookie = await signSessionCookie(
+      session._id.toString(),
+      sessionSecret,
+    );
 
     // Set secure HTTP-only cookie
     const response = NextResponse.json({ ok: true });
-    
+
     response.cookies.set('sid', signedCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -137,27 +133,28 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Signature verification error:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function incrementFailedAttempts(device: any) {
   device.failedAttempts += 1;
-  
+
   if (device.failedAttempts >= MAX_FAILED_ATTEMPTS) {
     device.status = 'locked';
   }
-  
+
   await device.save();
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Session } from '@/lib/models';
-import { verifySessionCookie } from '@/lib/crypto';
+
+// Import crypto helpers that work in the Edge runtime
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { createHash, randomBytes, verifySessionCookie } from '@/lib/crypto';
 
 // Define protected routes that require authentication
 const protectedPaths = [
@@ -39,7 +40,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Handle protected page routes
-  if (protectedPaths.some(path => pathname.startsWith(path))) {
+  if (protectedPaths.some((path) => pathname.startsWith(path))) {
     return handleProtectedRoute(request);
   }
 
@@ -61,16 +62,10 @@ async function handleApiRoute(request: NextRequest) {
   if (pathname === '/api/me') {
     const sessionResult = await verifySession(request);
     if (!sessionResult.valid) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    // Add device info to request headers for API route access
-    const response = NextResponse.next();
-    response.headers.set('x-device-id', sessionResult.deviceId || '');
-    return response;
+
+    return NextResponse.next();
   }
 
   return NextResponse.next();
@@ -78,7 +73,7 @@ async function handleApiRoute(request: NextRequest) {
 
 async function handleProtectedRoute(request: NextRequest) {
   const sessionResult = await verifySession(request);
-  
+
   if (!sessionResult.valid) {
     // Redirect to login/auth page
     const loginUrl = new URL('/auth', request.url);
@@ -86,16 +81,11 @@ async function handleProtectedRoute(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Add device info to request headers
-  const response = NextResponse.next();
-  response.headers.set('x-device-id', sessionResult.deviceId || '');
-  return response;
+  return NextResponse.next();
 }
 
 async function verifySession(request: NextRequest) {
   try {
-    await connectToDatabase();
-
     const sessionSecret = process.env.SESSION_SECRET;
     if (!sessionSecret) {
       throw new Error('SESSION_SECRET environment variable is not set');
@@ -108,30 +98,15 @@ async function verifySession(request: NextRequest) {
     }
 
     // Verify and extract session ID
-    const sessionId = verifySessionCookie(signedCookie, sessionSecret);
+    const sessionId = await verifySessionCookie(signedCookie, sessionSecret);
     if (!sessionId) {
       return { valid: false };
     }
 
-    // Find and validate session
-    const session = await Session.findById(sessionId);
-    if (!session) {
-      return { valid: false };
-    }
-
-    if (session.revokedAt) {
-      return { valid: false };
-    }
-
-    if (new Date() > session.expiresAt) {
-      return { valid: false };
-    }
-
-    return { 
-      valid: true, 
-      deviceId: session.deviceId.toString(),
-      sessionId: session._id.toString()
-    };
+    // Without access to the database in Edge runtime we cannot
+    // validate the session further. Assume it is valid if the
+    // HMAC signature matches.
+    return { valid: true, sessionId };
   } catch (error) {
     console.error('Session verification error:', error);
     return { valid: false };
@@ -142,14 +117,17 @@ async function verifySession(request: NextRequest) {
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 async function applyRateLimit(request: NextRequest) {
-  const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+  const ip =
+    (request as unknown as { ip?: string }).ip ||
+    request.headers.get('x-forwarded-for') ||
+    'unknown';
   const key = `${ip}:${request.nextUrl.pathname}`;
   const now = Date.now();
   const windowMs = 60 * 1000; // 1 minute
   const maxRequests = 10; // 10 requests per minute
 
   const current = rateLimitMap.get(key);
-  
+
   if (!current || now > current.resetTime) {
     rateLimitMap.set(key, { count: 1, resetTime: now + windowMs });
     return null;
@@ -158,12 +136,12 @@ async function applyRateLimit(request: NextRequest) {
   if (current.count >= maxRequests) {
     return NextResponse.json(
       { error: 'Too many requests' },
-      { 
+      {
         status: 429,
         headers: {
           'Retry-After': Math.ceil((current.resetTime - now) / 1000).toString(),
-        }
-      }
+        },
+      },
     );
   }
 

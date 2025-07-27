@@ -1,5 +1,7 @@
 import '@testing-library/jest-dom';
 
+import { webcrypto } from 'crypto';
+
 // Mock IndexedDB for testing
 const mockIndexedDB = {
   open: jest.fn(() => ({
@@ -24,32 +26,29 @@ Object.defineProperty(window, 'indexedDB', {
   writable: true,
 });
 
-// Mock crypto.subtle for testing
+// Provide Web Crypto API mocks for testing
 const mockSubtle = {
   generateKey: jest.fn(),
   exportKey: jest.fn(),
   importKey: jest.fn(),
   sign: jest.fn(),
   verify: jest.fn(),
+  digest: (...args) => webcrypto.subtle.digest(...args),
 };
 
-Object.defineProperty(window, 'crypto', {
+Object.defineProperty(global, 'crypto', {
   value: {
     subtle: mockSubtle,
     getRandomValues: jest.fn((arr) => {
-      for (let i = 0; i < arr.length; i++) {
-        arr[i] = Math.floor(Math.random() * 256);
-      }
-      return arr;
+      return webcrypto.getRandomValues(arr);
     }),
   },
-  writable: true,
 });
 
 // Mock TextEncoder/TextDecoder
 global.TextEncoder = class TextEncoder {
   encode(str) {
-    return new Uint8Array([...str].map(char => char.charCodeAt(0)));
+    return new Uint8Array([...str].map((char) => char.charCodeAt(0)));
   }
 };
 

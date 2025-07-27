@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Session } from '@/lib/models';
+
 import { verifySessionCookie } from '@/lib/crypto';
+import { Session } from '@/lib/models';
+import { connectToDatabase } from '@/lib/mongodb';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify and extract session ID
-    const sessionId = verifySessionCookie(signedCookie, sessionSecret);
+    const sessionId = await verifySessionCookie(signedCookie, sessionSecret);
     if (sessionId) {
       // Revoke session
       await Session.findByIdAndUpdate(sessionId, {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Logout error:', error);
-    
+
     // Still clear the cookie even if there's an error
     const response = NextResponse.json({ ok: true });
     response.cookies.delete('sid');
