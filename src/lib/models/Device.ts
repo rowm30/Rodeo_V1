@@ -21,7 +21,6 @@ const DeviceSchema = new Schema<IDevice>({
   publicKeyThumbprint: {
     type: String,
     required: true,
-    unique: true,
   },
   createdAt: {
     type: Date,

@@ -39,6 +39,22 @@ export async function middleware(request: NextRequest) {
     return handleApiRoute(request);
   }
 
+  if (pathname === '/') {
+    const sessionResult = await verifySession(request);
+    if (sessionResult.valid) {
+      return NextResponse.redirect(new URL('/home', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  if (pathname === '/home') {
+    const sessionResult = await verifySession(request);
+    if (!sessionResult.valid) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    return NextResponse.next();
+  }
+
   // Handle protected page routes
   if (protectedPaths.some((path) => pathname.startsWith(path))) {
     return handleProtectedRoute(request);

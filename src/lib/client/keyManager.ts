@@ -79,7 +79,7 @@ export async function storePrivateKey(privateKey: CryptoKey): Promise<void> {
 /**
  * Retrieve the stored private key JWK without importing it
  */
-async function getStoredPrivateKeyJWK(): Promise<JsonWebKey | null> {
+export async function getStoredPrivateKeyJWK(): Promise<JsonWebKey | null> {
   const db = await openDB();
   const tx = db.transaction([STORE_NAME], 'readonly');
   const store = tx.objectStore(STORE_NAME);
