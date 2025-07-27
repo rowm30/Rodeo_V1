@@ -1,0 +1,24 @@
+import mongoose, { Document, Schema } from 'mongoose';
+
+export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId;
+  deviceId: mongoose.Types.ObjectId;
+  publicId: string;
+  displayName: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const UserSchema = new Schema<IUser>(
+  {
+    deviceId: { type: Schema.Types.ObjectId, ref: 'Device', required: true },
+    publicId: { type: String, required: true, unique: true },
+    displayName: { type: String, required: true, unique: true },
+  },
+  { timestamps: true },
+);
+
+UserSchema.index({ deviceId: 1 });
+
+export const User =
+  mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
