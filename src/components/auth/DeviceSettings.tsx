@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+
 import { resetDevice } from '@/lib/client/auth';
+
 import { useAuth } from './AuthProvider';
 
 export function DeviceSettings() {
@@ -11,7 +13,7 @@ export function DeviceSettings() {
 
   const handleResetDevice = async () => {
     setLoading(true);
-    
+
     try {
       await resetDevice();
       await refresh(); // Refresh auth state
@@ -29,7 +31,7 @@ export function DeviceSettings() {
 
   if (showConfirm) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
         <div className="flex items-start">
           <div className="flex-shrink-0">
             <svg
@@ -50,8 +52,8 @@ export function DeviceSettings() {
             <h3 className="text-lg font-medium text-gray-900">Reset Device</h3>
             <div className="mt-2 text-sm text-gray-700">
               <p>
-                This will remove all authentication keys from this device. You will need to
-                re-authenticate to access your account.
+                This will remove all authentication keys from this device. You
+                will need to re-authenticate to access your account.
               </p>
               <p className="mt-2 font-medium">This action cannot be undone.</p>
             </div>
@@ -59,14 +61,14 @@ export function DeviceSettings() {
               <button
                 onClick={handleResetDevice}
                 disabled={loading}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                className="inline-flex items-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
               >
                 {loading ? 'Resetting...' : 'Yes, Reset Device'}
               </button>
               <button
                 onClick={() => setShowConfirm(false)}
                 disabled={loading}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Cancel
               </button>
@@ -78,19 +80,27 @@ export function DeviceSettings() {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Device Settings</h3>
-      
+    <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <h3 className="mb-4 text-lg font-medium text-gray-900">
+        Device Settings
+      </h3>
+
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="text-sm font-medium text-gray-900">Device Authentication</h4>
+            <h4 className="text-sm font-medium text-gray-900">
+              Device Authentication
+            </h4>
             <p className="text-sm text-gray-500">
               This device is authenticated and can access your account
             </p>
           </div>
           <div className="flex items-center text-green-600">
-            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <svg
+              className="mr-2 h-5 w-5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
               <path
                 fillRule="evenodd"
                 d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -101,13 +111,13 @@ export function DeviceSettings() {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-gray-200">
+        <div className="border-t border-gray-200 pt-4">
           <button
             onClick={() => setShowConfirm(true)}
-            className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            className="inline-flex items-center rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
           >
             <svg
-              className="w-4 h-4 mr-2"
+              className="mr-2 h-4 w-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

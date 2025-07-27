@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+
 import { AuthState, checkAuthStatus, refreshSession } from '@/lib/client/auth';
 
 interface AuthContextType extends AuthState {
@@ -36,15 +37,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     refresh();
 
     // Set up automatic session refresh
-    const interval = setInterval(async () => {
-      if (authState.authenticated) {
-        const refreshed = await refreshSession();
-        if (!refreshed) {
-          // Session couldn't be refreshed, check status
-          await refresh();
+    const interval = setInterval(
+      async () => {
+        if (authState.authenticated) {
+          const refreshed = await refreshSession();
+          if (!refreshed) {
+            // Session couldn't be refreshed, check status
+            await refresh();
+          }
         }
-      }
-    }, 10 * 60 * 1000); // Refresh every 10 minutes
+      },
+      10 * 60 * 1000,
+    ); // Refresh every 10 minutes
 
     return () => clearInterval(interval);
   }, [authState.authenticated]);
@@ -55,8 +59,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 }

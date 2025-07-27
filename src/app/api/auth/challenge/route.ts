@@ -1,9 +1,10 @@
+import mongoose from 'mongoose';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import mongoose from 'mongoose';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Device, Challenge } from '@/lib/models';
+
 import { generateNonce } from '@/lib/crypto';
+import { Challenge, Device } from '@/lib/models';
+import { connectToDatabase } from '@/lib/mongodb';
 
 const challengeSchema = z.object({
   deviceId: z.string().refine((id) => mongoose.Types.ObjectId.isValid(id), {
@@ -21,17 +22,14 @@ export async function POST(request: NextRequest) {
     // Verify device exists and is active
     const device = await Device.findById(deviceId);
     if (!device) {
-      return NextResponse.json(
-        { error: 'Device not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
 
     if (device.status !== 'active') {
       const statusCode = device.status === 'locked' ? 423 : 403;
       return NextResponse.json(
         { error: `Device is ${device.status}` },
-        { status: statusCode }
+        { status: statusCode },
       );
     }
 
@@ -53,17 +51,17 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Challenge creation error:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

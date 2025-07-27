@@ -1,6 +1,11 @@
 'use client';
 
-import { initializeDevice, signChallenge, clearStoredKeys, hasStoredKeys } from './keyManager';
+import {
+  clearStoredKeys,
+  hasStoredKeys,
+  initializeDevice,
+  signChallenge,
+} from './keyManager';
 
 export interface AuthState {
   authenticated: boolean;

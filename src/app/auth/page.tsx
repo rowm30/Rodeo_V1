@@ -1,12 +1,13 @@
 'use client';
 
 import React from 'react';
+
 import { AuthButton } from '@/components/auth';
 
 export default function AuthPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="w-full max-w-md space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Welcome to Rodeo
@@ -19,7 +20,8 @@ export default function AuthPage() {
           <AuthButton />
           <div className="text-center">
             <p className="text-xs text-gray-500">
-              No personal information required. Your device generates a unique cryptographic key for secure access.
+              No personal information required. Your device generates a unique
+              cryptographic key for secure access.
             </p>
           </div>
         </div>

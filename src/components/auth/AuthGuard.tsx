@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useAuth } from './AuthProvider';
+
 import { AuthButton } from './AuthButton';
+import { useAuth } from './AuthProvider';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -14,10 +15,10 @@ export function AuthGuard({ children, fallback }: AuthGuardProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <svg
-            className="animate-spin h-8 w-8 text-blue-600 mx-auto"
+            className="mx-auto h-8 w-8 animate-spin text-blue-600"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -45,8 +46,8 @@ export function AuthGuard({ children, fallback }: AuthGuardProps) {
   if (!authenticated) {
     return (
       fallback || (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="max-w-md w-full space-y-8">
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+          <div className="w-full max-w-md space-y-8">
             <div>
               <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
                 Welcome to Rodeo
@@ -59,7 +60,8 @@ export function AuthGuard({ children, fallback }: AuthGuardProps) {
               <AuthButton />
               <div className="text-center">
                 <p className="text-xs text-gray-500">
-                  No personal information required. Your device generates a unique cryptographic key for secure access.
+                  No personal information required. Your device generates a
+                  unique cryptographic key for secure access.
                 </p>
               </div>
             </div>

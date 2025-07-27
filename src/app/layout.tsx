@@ -3,10 +3,10 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 
+import { AuthProvider } from '@/components/auth';
 import BottomTabs from '@/components/nav/BottomTabs';
 import TopNav from '@/components/nav/TopNav';
 import ServiceWorker from '@/components/ServiceWorker';
-import { AuthProvider } from '@/components/auth';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({

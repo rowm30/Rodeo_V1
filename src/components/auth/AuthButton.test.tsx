@@ -2,16 +2,23 @@
  * @jest-environment jsdom
  */
 
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+import * as authModule from '@/lib/client/auth';
+
 import { AuthButton } from './AuthButton';
 import { AuthProvider } from './AuthProvider';
-import * as authModule from '@/lib/client/auth';
 
 // Mock the auth module
 jest.mock('@/lib/client/auth');
-const mockAuthenticateDevice = authModule.authenticateDevice as jest.MockedFunction<typeof authModule.authenticateDevice>;
-const mockCheckAuthStatus = authModule.checkAuthStatus as jest.MockedFunction<typeof authModule.checkAuthStatus>;
+const mockAuthenticateDevice =
+  authModule.authenticateDevice as jest.MockedFunction<
+    typeof authModule.authenticateDevice
+  >;
+const mockCheckAuthStatus = authModule.checkAuthStatus as jest.MockedFunction<
+  typeof authModule.checkAuthStatus
+>;
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -32,7 +39,7 @@ const renderWithProvider = (authenticated = false) => {
   return render(
     <AuthProvider>
       <AuthButton />
-    </AuthProvider>
+    </AuthProvider>,
   );
 };
 
@@ -43,7 +50,7 @@ describe('AuthButton', () => {
 
   it('should show "Continue on this device" button when not authenticated', async () => {
     renderWithProvider(false);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Continue on this device')).toBeInTheDocument();
     });
@@ -51,9 +58,11 @@ describe('AuthButton', () => {
 
   it('should show authenticated status when authenticated', async () => {
     renderWithProvider(true);
-    
+
     await waitFor(() => {
-      expect(screen.getByText("You're authenticated on this device")).toBeInTheDocument();
+      expect(
+        screen.getByText("You're authenticated on this device"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -65,7 +74,7 @@ describe('AuthButton', () => {
     });
 
     renderWithProvider(false);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Continue on this device')).toBeInTheDocument();
     });
@@ -89,7 +98,7 @@ describe('AuthButton', () => {
     });
 
     renderWithProvider(false);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Continue on this device')).toBeInTheDocument();
     });
@@ -106,7 +115,7 @@ describe('AuthButton', () => {
     mockAuthenticateDevice.mockImplementation(() => new Promise(() => {})); // Never resolves
 
     renderWithProvider(false);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Continue on this device')).toBeInTheDocument();
     });
