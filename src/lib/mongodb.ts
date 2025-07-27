@@ -1,4 +1,4 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, MongoClientOptions } from 'mongodb';
 import mongoose from 'mongoose';
 
 if (!process.env.MONGODB_URI) {
@@ -6,68 +6,54 @@ if (!process.env.MONGODB_URI) {
 }
 
 const uri = process.env.MONGODB_URI;
-const options = {};
+const options: MongoClientOptions = {};
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
-
-if (process.env.NODE_ENV === 'development') {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement).
-  const globalWithMongo = global as typeof globalThis & {
-    _mongoClientPromise?: Promise<MongoClient>;
-  };
-
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    globalWithMongo._mongoClientPromise = client.connect();
-  }
-  clientPromise = globalWithMongo._mongoClientPromise;
-} else {
-  // In production mode, it's best to not use a global variable.
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+// ---- Global typings for Node (avoid HMR re-init in dev) ----
+declare global {
+  var _mongoClientPromise: Promise<MongoClient> | undefined;
+  var _mongoose: MongooseCache | undefined;
 }
 
-// Mongoose connection for our authentication models
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
 }
 
-const globalWithMongoose = global as typeof globalThis & {
-  mongoose?: MongooseCache;
-};
-
-let cached = globalWithMongoose.mongoose;
-
-if (!cached) {
-  cached = globalWithMongoose.mongoose = { conn: null, promise: null };
+// ---- MongoDB native client (for general usage) ----
+let clientPromise: Promise<MongoClient>;
+if (process.env.NODE_ENV === 'development') {
+  if (!global._mongoClientPromise) {
+    const client = new MongoClient(uri, options);
+    global._mongoClientPromise = client.connect();
+  }
+  clientPromise = global._mongoClientPromise!;
+} else {
+  const client = new MongoClient(uri, options);
+  clientPromise = client.connect();
 }
 
+// ---- Mongoose connection (for your Mongoose models) ----
+const mongooseCache: MongooseCache =
+  global._mongoose ?? (global._mongoose = { conn: null, promise: null });
+
 export async function connectToDatabase() {
-  if (cached.conn) {
-    return cached.conn;
+  if (mongooseCache.conn) {
+    return mongooseCache.conn;
   }
 
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
-
-    cached.promise = mongoose.connect(uri, opts).then((mongoose) => {
-      return mongoose;
-    });
+  if (!mongooseCache.promise) {
+    const opts = { bufferCommands: false };
+    mongooseCache.promise = mongoose.connect(uri, opts);
   }
 
   try {
-    cached.conn = await cached.promise;
+    mongooseCache.conn = await mongooseCache.promise;
   } catch (e) {
-    cached.promise = null;
+    mongooseCache.promise = null;
     throw e;
   }
 
-  return cached.conn;
+  return mongooseCache.conn;
 }
 
 export default clientPromise;

@@ -18,10 +18,29 @@ const verifySchema = z.object({
 
 const MAX_FAILED_ATTEMPTS = 5;
 
+function getClientIp(req: NextRequest): string {
+  const xf = req.headers.get('x-forwarded-for');
+  if (xf) return xf.split(',')[0].trim();
+  const xv = req.headers.get('x-vercel-forwarded-for');
+  if (xv) return xv.split(',')[0].trim();
+  const xr = req.headers.get('x-real-ip');
+  if (xr) return xr;
+  return 'unknown';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { deviceId, challengeId, signature } = verifySchema.parse(body);
+    const parsed = verifySchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: parsed.error.issues },
+        { status: 400 },
+      );
+    }
+
+    const { deviceId, challengeId, signature } = parsed.data;
 
     await connectToDatabase();
 
@@ -86,11 +105,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Success! Reset failed attempts and create session
+    const ip = getClientIp(request);
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+
     device.failedAttempts = 0;
     device.lastSeenAt = new Date();
-    device.lastIp =
-      request.ip || request.headers.get('x-forwarded-for') || 'unknown';
-    device.userAgent = request.headers.get('user-agent') || 'unknown';
+    device.lastIp = ip;
+    device.userAgent = userAgent;
     await device.save();
 
     // Mark challenge as consumed
@@ -102,10 +123,9 @@ export async function POST(request: NextRequest) {
     const session = new Session({
       deviceId: device._id,
       expiresAt,
-      ip: request.ip || request.headers.get('x-forwarded-for') || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown',
+      ip,
+      userAgent,
     });
-
     await session.save();
 
     // Create signed session cookie
@@ -121,12 +141,11 @@ export async function POST(request: NextRequest) {
 
     // Set secure HTTP-only cookie
     const response = NextResponse.json({ ok: true });
-
     response.cookies.set('sid', signedCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 15 * 60, // 15 minutes in seconds
+      maxAge: 15 * 60, // seconds
       path: '/',
     });
 
@@ -136,7 +155,7 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
+        { error: 'Invalid request data', details: error.issues },
         { status: 400 },
       );
     }

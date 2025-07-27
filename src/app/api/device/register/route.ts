@@ -11,52 +11,67 @@ const registerSchema = z.object({
   }),
 });
 
+function getClientIp(req: NextRequest): string {
+  const xf = req.headers.get('x-forwarded-for');
+  if (xf) return xf.split(',')[0].trim();
+  const xv = req.headers.get('x-vercel-forwarded-for');
+  if (xv) return xv.split(',')[0].trim();
+  const xr = req.headers.get('x-real-ip');
+  if (xr) return xr;
+  return 'unknown';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { publicKeyJwk } = registerSchema.parse(body);
+    const parsed = registerSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: parsed.error.issues },
+        { status: 400 },
+      );
+    }
+
+    const { publicKeyJwk } = parsed.data;
 
     await connectToDatabase();
 
     // Generate thumbprint for deduplication
     const publicKeyThumbprint = await generateJWKThumbprint(publicKeyJwk);
-
     if (typeof publicKeyThumbprint !== 'string') {
       throw new Error('publicKeyThumbprint must be a string');
     }
 
-    // Check if device already exists
+    const ip = getClientIp(request);
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+
+    // Create or update device
     let device = await Device.findOne({ publicKeyThumbprint });
 
     if (!device) {
-      // Create new device
       device = new Device({
         publicKeyJwk,
         publicKeyThumbprint,
-        lastIp:
-          request.ip || request.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: request.headers.get('user-agent') || 'unknown',
+        lastSeenAt: new Date(),
+        lastIp: ip,
+        userAgent,
       });
-
       await device.save();
     } else {
-      // Update existing device's last seen info
       device.lastSeenAt = new Date();
-      device.lastIp =
-        request.ip || request.headers.get('x-forwarded-for') || 'unknown';
-      device.userAgent = request.headers.get('user-agent') || 'unknown';
+      device.lastIp = ip;
+      device.userAgent = userAgent;
       await device.save();
     }
 
-    return NextResponse.json({
-      deviceId: device._id.toString(),
-    });
+    return NextResponse.json({ deviceId: device._id.toString() });
   } catch (error) {
     console.error('Device registration error:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
+        { error: 'Invalid request data', details: error.issues },
         { status: 400 },
       );
     }
