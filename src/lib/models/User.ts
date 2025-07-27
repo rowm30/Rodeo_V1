@@ -19,8 +19,6 @@ const UserSchema = new Schema<IUser>(
 );
 
 UserSchema.index({ deviceId: 1 });
-UserSchema.index({ publicId: 1 }, { unique: true });
-UserSchema.index({ displayName: 1 }, { unique: true });
 
 export const User =
   mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
