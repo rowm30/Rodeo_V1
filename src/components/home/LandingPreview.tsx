@@ -2,10 +2,6 @@
 import { useEffect, useState } from 'react';
 
 import { AuthButton } from '@/components/auth';
-import {
-  ensureDeviceKeys,
-  getStoredPrivateKeyJWK,
-} from '@/lib/client/keyManager';
 import { generateJWKThumbprint } from '@/lib/crypto';
 import { formatPublicId, makeDisplayName } from '@/lib/identity';
 
@@ -14,19 +10,25 @@ export function LandingPreview() {
   const [displayName, setDisplayName] = useState<string>('');
 
   useEffect(() => {
+    let mounted = true;
+
     (async () => {
-      await ensureDeviceKeys();
-      const jwk = await getStoredPrivateKeyJWK();
-      if (!jwk) return;
+      const { ensureDeviceKeys } = await import('@/lib/client/keyManager');
+      const { publicKeyJwk } = await ensureDeviceKeys();
       const thumbprint = await generateJWKThumbprint({
-        kty: jwk.kty,
-        crv: jwk.crv,
-        x: jwk.x,
-        y: jwk.y,
+        crv: publicKeyJwk.crv,
+        kty: publicKeyJwk.kty,
+        x: publicKeyJwk.x,
+        y: publicKeyJwk.y,
       });
+      if (!mounted) return;
       setPublicId(formatPublicId(thumbprint));
       setDisplayName(makeDisplayName(thumbprint));
     })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (

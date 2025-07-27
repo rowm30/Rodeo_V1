@@ -4,6 +4,7 @@ const DB_NAME = 'RodeoAuth';
 const DB_VERSION = 1;
 const STORE_NAME = 'keys';
 const PRIVATE_KEY_ID = 'device-private-key';
+const PUBLIC_KEY_ID = 'device-public-key';
 
 export interface KeyPair {
   publicKey: CryptoKey;
@@ -26,6 +27,26 @@ function openDB(): Promise<IDBDatabase> {
         db.createObjectStore(STORE_NAME);
       }
     };
+  });
+}
+
+async function idbGet<T = unknown>(key: IDBValidKey): Promise<T | null> {
+  const db = await openDB();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_NAME], 'readonly');
+    const request = tx.objectStore(STORE_NAME).get(key);
+    request.onsuccess = () => resolve((request.result as T) ?? null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function idbPut<T = unknown>(key: IDBValidKey, value: T): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([STORE_NAME], 'readwrite');
+    tx.objectStore(STORE_NAME).put(value as unknown as IDBValidKey, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -74,6 +95,18 @@ export async function storePrivateKey(privateKey: CryptoKey): Promise<void> {
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
   });
+}
+
+export async function storePrivateKeyJWK(jwk: JsonWebKey): Promise<void> {
+  await idbPut(PRIVATE_KEY_ID, jwk);
+}
+
+export async function storePublicKeyJWK(jwk: JsonWebKey): Promise<void> {
+  await idbPut(PUBLIC_KEY_ID, jwk);
+}
+
+export async function getStoredPublicKeyJWK(): Promise<JsonWebKey | null> {
+  return (await idbGet<JsonWebKey>(PUBLIC_KEY_ID)) ?? null;
 }
 
 /**
@@ -218,4 +251,24 @@ export async function initializeDevice(): Promise<string> {
 
   const { deviceId } = await response.json();
   return deviceId;
+}
+
+export async function ensureDeviceKeys(): Promise<{
+  publicKeyJwk: JsonWebKey;
+  privateKeyJwk: JsonWebKey;
+}> {
+  const existingPriv = await getStoredPrivateKeyJWK();
+  const existingPub = await getStoredPublicKeyJWK();
+  if (existingPriv && existingPub) {
+    return { publicKeyJwk: existingPub, privateKeyJwk: existingPriv };
+  }
+
+  const { publicKey, privateKey } = await generateKeyPair();
+  const publicKeyJwk = await crypto.subtle.exportKey('jwk', publicKey);
+  const privateKeyJwk = await crypto.subtle.exportKey('jwk', privateKey);
+
+  await storePublicKeyJWK(publicKeyJwk);
+  await storePrivateKeyJWK(privateKeyJwk);
+
+  return { publicKeyJwk, privateKeyJwk };
 }
