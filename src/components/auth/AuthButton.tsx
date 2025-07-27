@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 
 import { authenticateDevice } from '@/lib/client/auth';
@@ -8,6 +9,7 @@ import { useAuth } from './AuthProvider';
 
 export function AuthButton() {
   const { authenticated, refresh } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +24,7 @@ export function AuthButton() {
         setError(result.error);
       } else {
         await refresh(); // Refresh auth state
-        window.location.reload();
+        router.push('/home');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
