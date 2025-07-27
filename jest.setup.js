@@ -33,7 +33,7 @@ const mockSubtle = {
   importKey: jest.fn(),
   sign: jest.fn(),
   verify: jest.fn(),
-  digest: jest.fn(),
+  digest: (...args) => webcrypto.subtle.digest(...args),
 };
 
 Object.defineProperty(global, 'crypto', {

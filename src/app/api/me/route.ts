@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Session } from '@/lib/models';
+
 import { verifySessionCookie } from '@/lib/crypto';
+import { Session } from '@/lib/models';
+import { connectToDatabase } from '@/lib/mongodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,40 +18,31 @@ export async function GET(request: NextRequest) {
     if (!signedCookie) {
       return NextResponse.json(
         { error: 'No session cookie found' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Verify and extract session ID
-    const sessionId = verifySessionCookie(signedCookie, sessionSecret);
+    const sessionId = await verifySessionCookie(signedCookie, sessionSecret);
     if (!sessionId) {
       return NextResponse.json(
         { error: 'Invalid session cookie' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Find and validate session
     const session = await Session.findById(sessionId).populate('deviceId');
     if (!session) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Session not found' }, { status: 401 });
     }
 
     if (session.revokedAt) {
-      return NextResponse.json(
-        { error: 'Session revoked' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Session revoked' }, { status: 401 });
     }
 
     if (new Date() > session.expiresAt) {
-      return NextResponse.json(
-        { error: 'Session expired' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Session expired' }, { status: 401 });
     }
 
     return NextResponse.json({
@@ -63,10 +55,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Authentication check error:', error);
-    
+
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
