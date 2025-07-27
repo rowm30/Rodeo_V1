@@ -4,21 +4,35 @@ import { webcrypto } from 'crypto';
 
 // Mock IndexedDB for testing
 const mockIndexedDB = {
-  open: jest.fn(() => ({
-    result: {
-      transaction: jest.fn(() => ({
-        objectStore: jest.fn(() => ({
-          put: jest.fn(),
-          get: jest.fn(),
-          clear: jest.fn(),
+  open: jest.fn(() => {
+    const request = {
+      result: {
+        transaction: jest.fn(() => ({
+          objectStore: jest.fn(() => ({
+            put: jest.fn(() => ({ onsuccess: null, onerror: null })),
+            get: jest.fn(() => ({
+              onsuccess: null,
+              onerror: null,
+              result: undefined,
+            })),
+            clear: jest.fn(() => ({ onsuccess: null, onerror: null })),
+          })),
         })),
-      })),
-      createObjectStore: jest.fn(),
-    },
-    onsuccess: null,
-    onerror: null,
-    onupgradeneeded: null,
-  })),
+        createObjectStore: jest.fn(),
+      },
+      onsuccess: null,
+      onerror: null,
+      onupgradeneeded: null,
+    };
+
+    setTimeout(() => {
+      if (request.onsuccess) {
+        request.onsuccess({ target: request });
+      }
+    }, 0);
+
+    return request;
+  }),
 };
 
 Object.defineProperty(window, 'indexedDB', {

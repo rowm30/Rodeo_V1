@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IDevice extends Document {
   _id: mongoose.Types.ObjectId;
@@ -21,8 +21,6 @@ const DeviceSchema = new Schema<IDevice>({
   publicKeyThumbprint: {
     type: String,
     required: true,
-    unique: true,
-    index: true,
   },
   createdAt: {
     type: Date,
@@ -60,4 +58,5 @@ const DeviceSchema = new Schema<IDevice>({
 DeviceSchema.index({ status: 1 });
 DeviceSchema.index({ publicKeyThumbprint: 1 }, { unique: true });
 
-export const Device = mongoose.models.Device || mongoose.model<IDevice>('Device', DeviceSchema);
+export const Device =
+  mongoose.models.Device || mongoose.model<IDevice>('Device', DeviceSchema);
