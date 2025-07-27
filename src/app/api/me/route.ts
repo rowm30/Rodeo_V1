@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { verifySessionCookie } from '@/lib/crypto';
-import { Session } from '@/lib/models';
+import { Session, User } from '@/lib/models';
 import { connectToDatabase } from '@/lib/mongodb';
 
 export async function GET(request: NextRequest) {
@@ -45,9 +45,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Session expired' }, { status: 401 });
     }
 
+    const user = await User.findOne({ deviceId: session.deviceId._id });
+
     return NextResponse.json({
       authenticated: true,
       deviceId: session.deviceId._id.toString(),
+      user: user
+        ? { publicId: user.publicId, displayName: user.displayName }
+        : null,
       sessionInfo: {
         createdAt: session.createdAt,
         expiresAt: session.expiresAt,

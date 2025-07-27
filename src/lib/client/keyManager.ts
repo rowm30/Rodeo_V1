@@ -4,6 +4,7 @@ const DB_NAME = 'RodeoAuth';
 const DB_VERSION = 1;
 const STORE_NAME = 'keys';
 const PRIVATE_KEY_ID = 'device-private-key';
+const PUBLIC_KEY_ID = 'device-public-key';
 
 export interface KeyPair {
   publicKey: CryptoKey;
@@ -26,6 +27,26 @@ function openDB(): Promise<IDBDatabase> {
         db.createObjectStore(STORE_NAME);
       }
     };
+  });
+}
+
+async function idbGet<T = unknown>(key: IDBValidKey): Promise<T | null> {
+  const db = await openDB();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_NAME], 'readonly');
+    const request = tx.objectStore(STORE_NAME).get(key);
+    request.onsuccess = () => resolve((request.result as T) ?? null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function idbPut<T = unknown>(key: IDBValidKey, value: T): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([STORE_NAME], 'readwrite');
+    tx.objectStore(STORE_NAME).put(value as unknown as IDBValidKey, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -63,6 +84,9 @@ export async function storePrivateKey(privateKey: CryptoKey): Promise<void> {
   // Export private key as JWK for storage BEFORE starting the transaction
   const privateKeyJWK = await crypto.subtle.exportKey('jwk', privateKey);
 
+  // Persist the JWK directly so we can derive the public key later without
+  // attempting to re-export a non-extractable CryptoKey
+
   const transaction = db.transaction([STORE_NAME], 'readwrite');
   const store = transaction.objectStore(STORE_NAME);
 
@@ -73,23 +97,41 @@ export async function storePrivateKey(privateKey: CryptoKey): Promise<void> {
   });
 }
 
+export async function storePrivateKeyJWK(jwk: JsonWebKey): Promise<void> {
+  await idbPut(PRIVATE_KEY_ID, jwk);
+}
+
+export async function storePublicKeyJWK(jwk: JsonWebKey): Promise<void> {
+  await idbPut(PUBLIC_KEY_ID, jwk);
+}
+
+export async function getStoredPublicKeyJWK(): Promise<JsonWebKey | null> {
+  return (await idbGet<JsonWebKey>(PUBLIC_KEY_ID)) ?? null;
+}
+
+/**
+ * Retrieve the stored private key JWK without importing it
+ */
+export async function getStoredPrivateKeyJWK(): Promise<JsonWebKey | null> {
+  const db = await openDB();
+  const tx = db.transaction([STORE_NAME], 'readonly');
+  const store = tx.objectStore(STORE_NAME);
+
+  const jwk = await new Promise<JsonWebKey | undefined>((resolve, reject) => {
+    const request = store.get(PRIVATE_KEY_ID);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+
+  return jwk ?? null;
+}
+
 /**
  * Retrieve private key from IndexedDB
  */
 export async function getStoredPrivateKey(): Promise<CryptoKey | null> {
   try {
-    const db = await openDB();
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-
-    const privateKeyJWK = await new Promise<JsonWebKey | undefined>(
-      (resolve, reject) => {
-        const request = store.get(PRIVATE_KEY_ID);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-      },
-    );
-
+    const privateKeyJWK = await getStoredPrivateKeyJWK();
     if (!privateKeyJWK) {
       return null;
     }
@@ -180,8 +222,11 @@ export async function initializeDevice(): Promise<string> {
     // Export public key
     publicKeyJWK = await exportPublicKeyJWK(keyPair.publicKey);
   } else {
-    // Derive public key from stored private key
-    const privateKeyJWK = await crypto.subtle.exportKey('jwk', privateKey);
+    // Derive public key from stored JWK without re-exporting the key
+    const privateKeyJWK = await getStoredPrivateKeyJWK();
+    if (!privateKeyJWK) {
+      throw new Error('Stored private key JWK missing');
+    }
     publicKeyJWK = {
       kty: privateKeyJWK.kty,
       crv: privateKeyJWK.crv,
@@ -206,4 +251,24 @@ export async function initializeDevice(): Promise<string> {
 
   const { deviceId } = await response.json();
   return deviceId;
+}
+
+export async function ensureDeviceKeys(): Promise<{
+  publicKeyJwk: JsonWebKey;
+  privateKeyJwk: JsonWebKey;
+}> {
+  const existingPriv = await getStoredPrivateKeyJWK();
+  const existingPub = await getStoredPublicKeyJWK();
+  if (existingPriv && existingPub) {
+    return { publicKeyJwk: existingPub, privateKeyJwk: existingPriv };
+  }
+
+  const { publicKey, privateKey } = await generateKeyPair();
+  const publicKeyJwk = await crypto.subtle.exportKey('jwk', publicKey);
+  const privateKeyJwk = await crypto.subtle.exportKey('jwk', privateKey);
+
+  await storePublicKeyJWK(publicKeyJwk);
+  await storePrivateKeyJWK(privateKeyJwk);
+
+  return { publicKeyJwk, privateKeyJwk };
 }
