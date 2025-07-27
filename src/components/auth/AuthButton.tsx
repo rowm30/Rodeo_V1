@@ -22,6 +22,7 @@ export function AuthButton() {
         setError(result.error);
       } else {
         await refresh(); // Refresh auth state
+        window.location.reload();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
