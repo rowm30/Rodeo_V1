@@ -16,10 +16,10 @@ export interface KeyPair {
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
-    
+
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -39,7 +39,7 @@ export async function generateKeyPair(): Promise<KeyPair> {
       namedCurve: 'P-256',
     },
     true, // extractable
-    ['sign', 'verify']
+    ['sign', 'verify'],
   );
 
   return keyPair as KeyPair;
@@ -48,7 +48,9 @@ export async function generateKeyPair(): Promise<KeyPair> {
 /**
  * Export public key as JWK
  */
-export async function exportPublicKeyJWK(publicKey: CryptoKey): Promise<JsonWebKey> {
+export async function exportPublicKeyJWK(
+  publicKey: CryptoKey,
+): Promise<JsonWebKey> {
   return await crypto.subtle.exportKey('jwk', publicKey);
 }
 
@@ -57,12 +59,13 @@ export async function exportPublicKeyJWK(publicKey: CryptoKey): Promise<JsonWebK
  */
 export async function storePrivateKey(privateKey: CryptoKey): Promise<void> {
   const db = await openDB();
+
+  // Export private key as JWK for storage BEFORE starting the transaction
+  const privateKeyJWK = await crypto.subtle.exportKey('jwk', privateKey);
+
   const transaction = db.transaction([STORE_NAME], 'readwrite');
   const store = transaction.objectStore(STORE_NAME);
-  
-  // Export private key as JWK for storage
-  const privateKeyJWK = await crypto.subtle.exportKey('jwk', privateKey);
-  
+
   return new Promise((resolve, reject) => {
     const request = store.put(privateKeyJWK, PRIVATE_KEY_ID);
     request.onerror = () => reject(request.error);
@@ -78,12 +81,14 @@ export async function getStoredPrivateKey(): Promise<CryptoKey | null> {
     const db = await openDB();
     const transaction = db.transaction([STORE_NAME], 'readonly');
     const store = transaction.objectStore(STORE_NAME);
-    
-    const privateKeyJWK = await new Promise<JsonWebKey | undefined>((resolve, reject) => {
-      const request = store.get(PRIVATE_KEY_ID);
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-    });
+
+    const privateKeyJWK = await new Promise<JsonWebKey | undefined>(
+      (resolve, reject) => {
+        const request = store.get(PRIVATE_KEY_ID);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      },
+    );
 
     if (!privateKeyJWK) {
       return null;
@@ -98,7 +103,7 @@ export async function getStoredPrivateKey(): Promise<CryptoKey | null> {
         namedCurve: 'P-256',
       },
       false,
-      ['sign']
+      ['sign'],
     );
   } catch (error) {
     console.error('Error retrieving private key:', error);
@@ -113,7 +118,7 @@ export async function clearStoredKeys(): Promise<void> {
   const db = await openDB();
   const transaction = db.transaction([STORE_NAME], 'readwrite');
   const store = transaction.objectStore(STORE_NAME);
-  
+
   return new Promise((resolve, reject) => {
     const request = store.clear();
     request.onerror = () => reject(request.error);
@@ -132,14 +137,14 @@ export async function signChallenge(nonce: string): Promise<string> {
 
   const encoder = new TextEncoder();
   const data = encoder.encode(nonce);
-  
+
   const signature = await crypto.subtle.sign(
     {
       name: 'ECDSA',
       hash: 'SHA-256',
     },
     privateKey,
-    data
+    data,
   );
 
   // Convert signature to base64url
@@ -168,10 +173,10 @@ export async function initializeDevice(): Promise<string> {
     // Generate new key pair
     const keyPair = await generateKeyPair();
     privateKey = keyPair.privateKey;
-    
+
     // Store private key
     await storePrivateKey(privateKey);
-    
+
     // Export public key
     publicKeyJWK = await exportPublicKeyJWK(keyPair.publicKey);
   } else {

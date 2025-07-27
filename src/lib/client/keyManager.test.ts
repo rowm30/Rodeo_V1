@@ -3,14 +3,12 @@
  */
 
 import {
-  generateKeyPair,
-  exportPublicKeyJWK,
-  storePrivateKey,
-  getStoredPrivateKey,
   clearStoredKeys,
-  signChallenge,
-  hasStoredKeys,
+  exportPublicKeyJWK,
+  generateKeyPair,
   initializeDevice,
+  signChallenge,
+  storePrivateKey,
 } from './keyManager';
 
 // Mock fetch for API calls
@@ -31,39 +29,48 @@ const mockJWK = {
 
 const mockSignature = new ArrayBuffer(64);
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
-  
+
   // Reset crypto.subtle mocks
   (crypto.subtle.generateKey as jest.Mock).mockResolvedValue(mockKeyPair);
   (crypto.subtle.exportKey as jest.Mock).mockResolvedValue(mockJWK);
-  (crypto.subtle.importKey as jest.Mock).mockResolvedValue(mockKeyPair.privateKey);
+  (crypto.subtle.importKey as jest.Mock).mockResolvedValue(
+    mockKeyPair.privateKey,
+  );
   (crypto.subtle.sign as jest.Mock).mockResolvedValue(mockSignature);
+
+  await clearStoredKeys();
 });
 
 describe('Key Manager', () => {
   describe('generateKeyPair', () => {
     it('should generate an ECDSA P-256 key pair', async () => {
       const keyPair = await generateKeyPair();
-      
+
       expect(crypto.subtle.generateKey).toHaveBeenCalledWith(
         {
           name: 'ECDSA',
           namedCurve: 'P-256',
         },
         true,
-        ['sign', 'verify']
+        ['sign', 'verify'],
       );
-      
+
       expect(keyPair).toEqual(mockKeyPair);
     });
   });
 
   describe('exportPublicKeyJWK', () => {
     it('should export public key as JWK', async () => {
-      const jwk = await exportPublicKeyJWK(mockKeyPair.publicKey as any);
-      
-      expect(crypto.subtle.exportKey).toHaveBeenCalledWith('jwk', mockKeyPair.publicKey);
+      const jwk = await exportPublicKeyJWK(
+        mockKeyPair.publicKey as unknown as CryptoKey,
+      );
+
+      expect(crypto.subtle.exportKey).toHaveBeenCalledWith(
+        'jwk',
+        mockKeyPair.publicKey,
+      );
       expect(jwk).toEqual(mockJWK);
     });
   });
@@ -71,35 +78,39 @@ describe('Key Manager', () => {
   describe('signChallenge', () => {
     it('should sign a challenge with the private key', async () => {
       const nonce = 'test-nonce';
-      
-      // Mock getStoredPrivateKey to return a private key
+
+      // Store a private key first
+      await storePrivateKey(mockKeyPair.privateKey as unknown as CryptoKey);
+
       (crypto.subtle.exportKey as jest.Mock).mockResolvedValueOnce(mockJWK);
-      
+
       const signature = await signChallenge(nonce);
-      
+
       expect(typeof signature).toBe('string');
       expect(signature.length).toBeGreaterThan(0);
     });
 
     it('should throw error if no private key found', async () => {
-      // Mock getStoredPrivateKey to return null
-      jest.spyOn(require('./keyManager'), 'getStoredPrivateKey').mockResolvedValueOnce(null);
-      
-      await expect(signChallenge('test-nonce')).rejects.toThrow('No private key found');
+      // Ensure no key is stored
+      await clearStoredKeys();
+
+      await expect(signChallenge('test-nonce')).rejects.toThrow(
+        'No private key found',
+      );
     });
   });
 
   describe('initializeDevice', () => {
     it('should register device and return device ID', async () => {
       const mockDeviceId = 'test-device-id';
-      
+
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ deviceId: mockDeviceId }),
       });
 
       const deviceId = await initializeDevice();
-      
+
       expect(fetch).toHaveBeenCalledWith('/api/device/register', {
         method: 'POST',
         headers: {
@@ -107,7 +118,7 @@ describe('Key Manager', () => {
         },
         body: JSON.stringify({ publicKeyJwk: mockJWK }),
       });
-      
+
       expect(deviceId).toBe(mockDeviceId);
     });
 
@@ -117,7 +128,9 @@ describe('Key Manager', () => {
         statusText: 'Bad Request',
       });
 
-      await expect(initializeDevice()).rejects.toThrow('Device registration failed: Bad Request');
+      await expect(initializeDevice()).rejects.toThrow(
+        'Device registration failed: Bad Request',
+      );
     });
   });
 });
