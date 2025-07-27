@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
 export interface ISession extends Document {
   _id: mongoose.Types.ObjectId;
@@ -16,7 +16,6 @@ const SessionSchema = new Schema<ISession>({
     type: Schema.Types.ObjectId,
     ref: 'Device',
     required: true,
-    index: true,
   },
   createdAt: {
     type: Date,
@@ -25,7 +24,6 @@ const SessionSchema = new Schema<ISession>({
   expiresAt: {
     type: Date,
     required: true,
-    index: true,
   },
   revokedAt: {
     type: Date,
@@ -51,4 +49,5 @@ SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 // Compound indexes for efficient queries
 SessionSchema.index({ deviceId: 1, expiresAt: 1 });
 
-export const Session = mongoose.models.Session || mongoose.model<ISession>('Session', SessionSchema);
+export const Session =
+  mongoose.models.Session || mongoose.model<ISession>('Session', SessionSchema);
