@@ -19,10 +19,10 @@ export default function BottomTabs() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 border-t bg-white sm:hidden dark:bg-black"
+      className="fixed bottom-0 left-0 right-0 overflow-x-auto border-t bg-white sm:hidden dark:bg-black"
       aria-label="Bottom navigation"
     >
-      <ul className="flex justify-around">
+      <ul className="flex flex-nowrap justify-around whitespace-nowrap">
         {tabs.map((tab) => (
           <li key={tab.href}>
             <Link
